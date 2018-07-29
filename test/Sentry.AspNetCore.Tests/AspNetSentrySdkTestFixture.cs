@@ -10,10 +10,25 @@ namespace Sentry.AspNetCore.Tests
 
         protected Action<WebHostBuilder> AfterConfigureBuilder;
 
+        public FakeServer FakeServer { get; set; } = new FakeSentryServer();
+
+        public AspNetSentrySdkTestFixture()
+        {
+            FakeServer.RequestHandlers.Add(new RequestHandler
+            {
+                Path = "/",
+                Response = "home"
+            });
+
+            FakeServer.RequestHandlers.Add(new RequestHandler
+            {
+                Path = "/throw",
+                Handler = _ => throw new Exception("test error")
+            });
+        }
+
         protected override void ConfigureBuilder(WebHostBuilder builder)
         {
-            var sentry = FakeSentryServer.CreateServer();
-            var sentryHttpClient = sentry.CreateClient();
             builder.UseSentry(options =>
             {
                 options.Dsn = DsnSamples.ValidDsnWithSecret;
@@ -21,8 +36,7 @@ namespace Sentry.AspNetCore.Tests
                 {
                     i.Http(h =>
                     {
-                        h.SentryHttpClientFactory = new DelegateHttpClientFactory((d, o)
-                            => sentryHttpClient);
+                        h.SentryHttpClientFactory = );
                     });
                 });
 

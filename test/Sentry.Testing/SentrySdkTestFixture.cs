@@ -1,76 +1,22 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Sentry.Testing
 {
     public abstract class SentrySdkTestFixture : IDisposable
     {
-        public TestServer TestServer { get; set; }
+        public FakeSentryServer FakeSentryServer { get; set; } = new FakeSentryServer();
 
-        public HttpClient HttpClient { get; set; }
-        public IServiceProvider ServiceProvider { get; set; }
-
-        public Action<IServiceCollection> ConfigureServices { get; set; }
-
-        public LastExceptionFilter LastExceptionFilter { get; private set; }
-
-        public IReadOnlyCollection<RequestHandler> Handlers { get; set; } = new[]
-        {
-            new RequestHandler
-            {
-                Path = "/",
-                Response = "home"
-            },
-            new RequestHandler
-            {
-                Path = "/throw",
-                Handler = _ => throw new Exception("test error")
-            }
-        };
-
-        protected virtual void Build()
-        {
-            var builder = new WebHostBuilder();
-            builder.ConfigureServices(s =>
-            {
-                var lastException = new LastExceptionFilter();
-                s.AddSingleton<IStartupFilter>(lastException);
-                s.AddSingleton(lastException);
-
-                ConfigureServices?.Invoke(s);
-            });
-            builder.Configure(app =>
-            {
-                app.Use(async (context, next) =>
-                {
-                    var handler = Handlers.FirstOrDefault(p => p.Path == context.Request.Path);
-
-                    await (handler?.Handler(context) ?? next());
-                });
-            });
-
-            ConfigureBuilder(builder);
-
-            TestServer = new TestServer(builder);
-            HttpClient = TestServer.CreateClient();
-            ServiceProvider = TestServer.Host.Services;
-            LastExceptionFilter = ServiceProvider.GetRequiredService<LastExceptionFilter>();
-        }
+        protected virtual void Build() => FakeSentryServer.Start();
 
         protected virtual void ConfigureBuilder(WebHostBuilder builder)
         {
-
+            SentrySdk.Init(o =>
+            {
+                o.Http(h => h.SentryHttpClientFactory = FakeSentryServer.SentryHttpClientFactory);
+            });
         }
 
-        public void Dispose()
-        {
-            SentrySdk.Close();
-        }
+        public virtual void Dispose() => SentrySdk.Close();
     }
 }
