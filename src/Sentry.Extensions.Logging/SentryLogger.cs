@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using Sentry.Infrastructure;
+using Sentry.Protocol;
 
 namespace Sentry.Extensions.Logging
 {
@@ -58,8 +59,35 @@ namespace Sentry.Extensions.Logging
                 var @event = new SentryEvent(exception)
                 {
                     Logger = CategoryName,
-                    Message = message,
                 };
+
+                if (state is IReadOnlyCollection<KeyValuePair<string, object>> states)
+                {
+                    var logEntry = new SentryMessage();
+                    var @params = new List<object>();
+
+                    foreach (var keyValuePair in states)
+                    {
+                        if (keyValuePair.Key == "{OriginalFormat}")
+                        {
+                            logEntry.Message = keyValuePair.Value.ToString();
+                        }
+                        else
+                        {
+                            @params.Add(keyValuePair.Value);
+                        }
+                    }
+
+                    // TODO: drop ToArray when Protocol changes
+                    logEntry.Params = @params.ToArray();
+                    logEntry.Formatted = message;
+
+                    @event.StructuredMessage = logEntry;
+                }
+                else
+                {
+                    @event.Message = message;
+                }
 
                 var tuple = eventId.ToTupleOrNull();
                 if (tuple.HasValue)

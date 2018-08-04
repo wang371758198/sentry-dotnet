@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Sentry;
 
-class Program
+internal class Program
 {
-    static void Main()
+    private static void Main()
     {
         using (var loggerFactory = new LoggerFactory()
             .AddConsole(LogLevel.Trace)
@@ -31,7 +31,7 @@ class Program
 
             logger.LogInformation("2 - Information messages are stored as Breadcrumb, sent with the next event.");
 
-            logger.LogError("3 - This generates an event, captured by sentry and includes breadcrumbs (2) tracked in this transaction.");
+            logger.LogError("3 - This generates an event, captured by {0} and includes breadcrumbs ({1}) tracked in this transaction.", "sentry", 2);
 
             using (logger.BeginScope(new Dictionary<string, string>
                 {
@@ -41,7 +41,7 @@ class Program
             {
                 logger.LogWarning("4 - Breadcrumb that only exists inside this scope");
 
-                logger.LogError("5 - An event that includes the scoped key-value (A, B) above and also the breadcrumbs: (2, 4) and event (3)");
+                logger.LogError("5 - An event that includes the scoped key-value {scopes} above and also the breadcrumbs: (2, 4) and event ({event})", "(A, B)", 3);
 
                 using (logger.BeginScope("C - Inner most scope, with single string state"))
                 {
